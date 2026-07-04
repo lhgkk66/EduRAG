@@ -61,7 +61,7 @@ class IntentClassifier:
         """返回 general 或 specialized。"""
         if self.model is None or self.tokenizer is None:
             result = self._rule_fallback(question)
-            logger.info("意图分类 (rule fallback): '%s' -> %s", question[:60], result)
+            logger.info("意图分类 (rule fallback): intent=%s", result)
             return result
 
         import torch
@@ -74,9 +74,7 @@ class IntentClassifier:
         # label 0 = 通用知识 → general, label 1 = 专业咨询 → specialized
         # 映射已验证：旧项目 label_map = {"通用知识": 0, "专业咨询": 1}
         result: IntentLabel = "general" if label == 0 else "specialized"
-        logger.info(
-            "意图分类 (BERT): '%s' -> label=%d, intent=%s", question[:60], label, result
-        )
+        logger.info("意图分类 (BERT): label=%d, intent=%s", label, result)
         return result
 
     @staticmethod
