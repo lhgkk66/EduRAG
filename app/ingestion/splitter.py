@@ -113,4 +113,4 @@ if __name__ == "__main__":
 
     assert len(result.child_chunks) > 0, "应该有子块生成"
     assert len(result.child_to_parent) == len(result.child_chunks), "每个子块都要有父块映射"
-    print("\n✓ 自检通过")
+    print("\n[PASS] splitter self-test")

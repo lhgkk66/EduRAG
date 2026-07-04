@@ -30,7 +30,11 @@ models/
 .env
 
 # Claude local settings
-.claude/
+.claude/settings*
+.claude/projects/
+.claude/plans/
+.claude/worktrees/
+.claude/scheduled_tasks.json
 
 # Milvus data
 milvus_data/

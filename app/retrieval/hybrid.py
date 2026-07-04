@@ -59,11 +59,13 @@ class HybridRetriever:
         hits = []
         for doc_idx, score in bm25_results:
             text = self.bm25.doc_texts[doc_idx] if doc_idx < len(self.bm25.doc_texts) else ""
+            parent_id = self.bm25.doc_parent_ids[doc_idx] if doc_idx < len(self.bm25.doc_parent_ids) else ""
+            parent_text = ""  # BM25 不存 parent_text，RRF 融合后通过 dense 补全
             hits.append(ScoredHit(
                 chunk_id=doc_idx,
                 text=text,
-                parent_id="",
-                parent_text="",
+                parent_id=parent_id,
+                parent_text=parent_text,
                 source="bm25",
                 score=score,
                 origin="sparse",

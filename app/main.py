@@ -15,7 +15,7 @@ from app.retrieval.reranker import Reranker
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.search import SearchOrchestrator
 from app.generation.llm import QwenGenerator
-from app.api.chat import router as chat_router, _load_child_texts
+from app.api.chat import router as chat_router, _load_child_records
 
 
 @asynccontextmanager
@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI):
 
     # BM25
     app.state.bm25 = BM25Index()
-    child_texts = _load_child_texts(app.state.milvus_collection)
+    child_texts, child_parent_ids = _load_child_records(app.state.milvus_collection)
     if child_texts:
-        app.state.bm25.build(child_texts)
+        app.state.bm25.build(child_texts, child_parent_ids)
         print(f"[startup] BM25 索引已构建: {len(child_texts)} 条")
 
     # 注入管线

@@ -33,13 +33,13 @@ def main():
         print("data/ 下无支持的文件 (pdf/docx/csv)")
         return
 
-    all_texts = []
+    all_texts, all_parent_ids = [], []
     for fp in sorted(supported):
         print(f"[ingest] {fp}")
         stats = pipeline.run(fp)
         print(f"  → {stats.child_count} 个子块")
         # 从 Milvus 拉全量文本重建 BM25
-        all_texts = _load_all_texts(collection)
+        all_texts, all_parent_ids = _load_all_records(collection)
         break  # ponytail: 第一个文件后就用全量重建，避免重复拉取
 
     # 其余文件
@@ -48,26 +48,27 @@ def main():
         stats = pipeline.run(fp)
         print(f"  → {stats.child_count} 个子块")
 
-    all_texts = _load_all_texts(collection)
+    all_texts, all_parent_ids = _load_all_records(collection)
     bm25 = BM25Index()
-    bm25.build(all_texts)
+    bm25.build(all_texts, all_parent_ids)
     print(f"BM25 索引: {len(all_texts)} 条")
 
 
-def _load_all_texts(collection):
+def _load_all_records(collection):
     collection.load()
     total = collection.num_entities
-    texts = []
+    texts, parent_ids = [], []
     offset = 0
     while offset < total:
-        results = collection.query(expr="id >= 0", output_fields=["text"], limit=1000, offset=offset)
+        results = collection.query(expr="id >= 0", output_fields=["text", "parent_id"], limit=1000, offset=offset)
         for r in results:
             if t := r.get("text", ""):
                 texts.append(t)
+                parent_ids.append(r.get("parent_id", ""))
         offset += len(results)
         if len(results) < 1000:
             break
-    return texts
+    return texts, parent_ids
 
 
 if __name__ == "__main__":

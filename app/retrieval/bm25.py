@@ -12,6 +12,7 @@ class BM25Index:
         self.b = b
         self.corpus: List[List[str]] = []   # 分词后的文档
         self.doc_texts: List[str] = []       # 原始文本
+        self.doc_parent_ids: List[str] = []  # 对应 parent_id（用于 RRF 融合）
         self._idf: Dict[str, float] = {}
         self._avgdl: float = 0.0
         self._doc_len: List[int] = []
@@ -19,9 +20,10 @@ class BM25Index:
     def _tokenize(self, text: str) -> List[str]:
         return [w for w in jieba.cut(text) if w.strip()]
 
-    def build(self, texts: List[str]):
-        """从原始文本列表构建索引。"""
+    def build(self, texts: List[str], parent_ids: List[str] | None = None):
+        """从原始文本列表构建索引。parent_ids 用于 RRF 融合时匹配 dense 结果。"""
         self.doc_texts = list(texts)
+        self.doc_parent_ids = list(parent_ids) if parent_ids else [""] * len(texts)
         self.corpus = [self._tokenize(t) for t in texts]
         self._doc_len = [len(tokens) for tokens in self.corpus]
         self._avgdl = sum(self._doc_len) / max(len(self._doc_len), 1)
@@ -37,9 +39,9 @@ class BM25Index:
             for w, df_w in df.items()
         }
 
-    def rebuild(self, texts: List[str]):
+    def rebuild(self, texts: List[str], parent_ids: List[str] | None = None):
         """全量重建（注入后调用）。"""
-        self.build(texts)
+        self.build(texts, parent_ids)
 
     def search(self, query: str, k: int = 30) -> List[Tuple[int, float]]:
         """返回 [(doc_idx, bm25_score), ...] 按分数降序。"""
@@ -85,4 +87,4 @@ if __name__ == "__main__":
         print(f"  [{score:.4f}] {docs[idx][:60]}")
     assert len(results) > 0, "应该有结果"
     assert results[0][0] == 0, "第一条应该最相关"
-    print("✓ 自检通过")
+    print("[PASS] bm25 self-test")
