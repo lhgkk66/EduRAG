@@ -28,9 +28,13 @@
 │   └── schemas/            # Pydantic 模型
 ├── frontend/               # React SPA
 │   └── src/components/     # 聊天界面组件
-├── project_code/           # 配置
-├── Fqa/                    # FAQ 数据（Batch 2）
-├── Rag/                    # RAG 文档数据
+├── data/                   # 文档数据
+│   ├── fqa/                # FAQ 数据（Batch 2）
+│   └── rag/                # RAG 文档
+├── scripts/                # 运维脚本
+├── tests/                  # 测试
+├── config.ini              # 应用配置
+├── pyproject.toml          # Python 项目元数据
 └── requirements.txt
 ```
 
@@ -39,13 +43,18 @@
 ```bash
 # 安装依赖
 pip install -r requirements.txt
+# 或: pip install -e . && pip install -e ".[dev]"
+
+# 配置（复制模板，填入真实值）
+cp .env.example .env
+# 编辑 .env 填入 DASHSCOPE_API_KEY 等
+
+# 注入文档
+python scripts/seed_data.py
+# 或逐个文件: curl -X POST http://localhost:8000/api/ingest -F "file=@data/rag/LLM基础知识.pdf"
 
 # 启动后端
 uvicorn app.main:app --reload
-
-# 注入文档
-curl -X POST http://localhost:8000/api/ingest \
-  -F "file=@Rag/ai_data/LLM基础知识.pdf"
 
 # 启动前端
 cd frontend && npm install && npm run dev
