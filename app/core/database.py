@@ -16,7 +16,7 @@ def get_mysql_session():
     """返回 SQLAlchemy Session。"""
     global _mysql_engine, _mysql_session_factory
     if _mysql_engine is None:
-        url = f"mysql+pymysql://{config.MYSQL_USER}:{config.MYSQL_PASSWORD}@{config.MYSQL_HOST}/{config.MYSQL_DATABASE}?charset=utf8mb4"
+        url = f"mysql+pymysql://{config.MYSQL_USER}:{config.MYSQL_PASSWORD}@{config.MYSQL_HOST}:{config.MYSQL_PORT}/{config.MYSQL_DATABASE}?charset=utf8mb4"
         _mysql_engine = create_engine(url, pool_pre_ping=True, pool_recycle=3600)
         _mysql_session_factory = sessionmaker(bind=_mysql_engine)
     return _mysql_session_factory()

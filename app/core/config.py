@@ -15,6 +15,7 @@ class Config:
 
         # MySQL
         self.MYSQL_HOST = os.getenv('MYSQL_HOST', self.config.get('mysql', 'host', fallback='127.0.0.1'))
+        self.MYSQL_PORT = int(os.getenv('MYSQL_PORT', self.config.get('mysql', 'port', fallback='3306')))
         self.MYSQL_USER = os.getenv('MYSQL_USER', self.config.get('mysql', 'user', fallback='root'))
         self.MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', self.config.get('mysql', 'password', fallback='123456'))
         self.MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', self.config.get('mysql', 'database', fallback='subjects_kg'))
@@ -52,10 +53,14 @@ class Config:
         self.CUSTOMER_SERVICE_PHONE = self.config.get('app', 'customer_service_phone', fallback='12345678')
 
         # 路径
-        self.LOG_DIR = os.path.join(PROJECT_ROOT, 'logs')
         self.MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
         self.DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
-        self.LOG_FILE = os.path.join(self.LOG_DIR, 'app.log')
+
+        # 日志
+        self.LOG_DIR = os.path.join(PROJECT_ROOT, self.config.get('logger', 'log_dir', fallback='logs'))
+        self.LOG_LEVEL = os.getenv('LOG_LEVEL', self.config.get('logger', 'log_level', fallback='INFO')).upper()
+        self.LOG_MAX_BYTES = self.config.getint('logger', 'log_max_bytes', fallback=10485760)
+        self.LOG_BACKUP_COUNT = self.config.getint('logger', 'log_backup_count', fallback=5)
 
 
 config = Config()

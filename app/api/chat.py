@@ -1,5 +1,6 @@
 """API 路由：chat、health、ingest。"""
 import json
+import logging
 import uuid
 import tempfile
 from pathlib import Path
@@ -10,6 +11,7 @@ from app.schemas.chat import ChatRequest, ChatResponse, SourceDoc, IngestRespons
 from app.ingestion.pipeline import IngestionPipeline
 
 router = APIRouter()
+logger = logging.getLogger("edurag.api")
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -21,15 +23,17 @@ async def chat(req: ChatRequest, request: Request):
     # 加载会话历史
     history_key = f"chat:{session_id}"
     try:
-        raw = r.get(history_key)
+        raw = r.get(history_key) if r else None
         history = json.loads(raw) if raw else []
     except Exception:
-        history = []  # Redis 不可用时降级为空历史
+        logger.warning("Redis 读取历史失败", exc_info=True)
+        history = []
 
     # 检索
     try:
         hits = request.app.state.orchestrator.search(req.question)
     except Exception:
+        logger.error("检索失败: %s", req.question, exc_info=True)
         hits = []
 
     context = "\n---\n".join(h.text for h in hits) if hits else "暂无相关参考资料。"
@@ -38,15 +42,17 @@ async def chat(req: ChatRequest, request: Request):
     try:
         answer = request.app.state.generator.generate(req.question, context, history)
     except Exception:
+        logger.error("LLM 生成失败: %s", req.question, exc_info=True)
         answer = "抱歉，AI 服务暂时不可用，请稍后重试。"
 
     # 更新会话历史（Redis，24h TTL）
     try:
         history.append({"role": "user", "content": req.question})
         history.append({"role": "assistant", "content": answer})
-        r.setex(history_key, 86400, json.dumps(history, ensure_ascii=False))
+        if r:
+            r.setex(history_key, 86400, json.dumps(history, ensure_ascii=False))
     except Exception:
-        pass
+        logger.warning("Redis 写入历史失败", exc_info=True)
 
     # 写入 MySQL 日志（fire-and-forget）
     session = request.app.state.mysql_session_factory()
@@ -59,7 +65,7 @@ async def chat(req: ChatRequest, request: Request):
         )
         session.commit()
     except Exception:
-        pass  # 日志写入失败不阻塞主流程
+        logger.warning("MySQL 日志写入失败", exc_info=True)
     finally:
         session.close()
 
@@ -78,6 +84,7 @@ async def health():
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest(file: UploadFile = File(...), request: Request = None):
     """管理接口：上传文件触发注入。"""
+    logger.info("收到文件注入请求: %s", file.filename)
     suffix = Path(file.filename).suffix or ".tmp"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
@@ -86,10 +93,15 @@ async def ingest(file: UploadFile = File(...), request: Request = None):
     try:
         pipeline: IngestionPipeline = request.app.state.ingestion_pipeline
         stats = pipeline.run(Path(tmp_path))
+        logger.info("注入完成: %s → %s 个子块", file.filename, stats.child_count)
 
         # 重建 BM25 — 从 Milvus 拉取全量子块文本
         texts, parent_ids = _load_child_records(request.app.state.milvus_collection)
         request.app.state.bm25.rebuild(texts, parent_ids)
+        logger.info("BM25 重建完成: %s 条", len(texts))
+    except Exception:
+        logger.error("注入失败: %s", file.filename, exc_info=True)
+        raise
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
