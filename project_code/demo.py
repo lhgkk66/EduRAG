@@ -1,6 +1,7 @@
 # base/config.py
 # 导入配置解析库
 import configparser
+import json
 # 导入路径操作库
 import os
 
@@ -68,7 +69,7 @@ class Config:
         self.LLM_MODEL = self.config.get('llm', 'model', fallback='qwen-plus')
         # DashScope API 密钥
         self.DASHSCOPE_API_KEY = os.getenv('DASHSCOPE_API_KEY', self.config.get('llm', 'dashscope_api_key',
-                                                                                fallback='sk-b7314bb9c71a444293456ce5dcedf57e'))
+                                                                                fallback=''))
         # DashScope API 地址
         self.DASHSCOPE_BASE_URL = self.config.get('llm', 'dashscope_base_url',
                                                   fallback='https://dashscope.aliyuncs.com/compatible-mode/v1')
@@ -87,7 +88,7 @@ class Config:
 
         # 应用配置
         # 有效来源列表
-        self.VALID_SOURCES = eval(
+        self.VALID_SOURCES = json.loads(
             self.config.get('app', 'valid_sources', fallback='["ai", "java", "test", "ops", "bigdata"]'))
         # 客服电话
         self.CUSTOMER_SERVICE_PHONE = self.config.get('app', 'customer_service_phone', fallback='12345678')
