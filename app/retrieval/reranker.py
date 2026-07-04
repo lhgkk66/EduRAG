@@ -1,4 +1,5 @@
 """CrossEncoder 精排 — bge-reranker-large。"""
+import os
 from typing import List
 from dataclasses import dataclass
 
@@ -11,7 +12,10 @@ class ScoredDoc:
 
 
 class Reranker:
-    def __init__(self, model_name: str = "BAAI/bge-reranker-large", device: str = "cpu"):
+    def __init__(self, model_name: str = None, device: str = "cpu"):
+        if model_name is None:
+            from app.core.config import config
+            model_name = os.path.join(config.MODELS_DIR, "bge-reranker-large")
         from FlagEmbedding import FlagReranker
         self.model = FlagReranker(model_name, use_fp16=(device != "cpu"), device=device)
 

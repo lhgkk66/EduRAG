@@ -40,10 +40,19 @@ class ChineseTextSplitter:
         return sentences
 
     def _merge_to_parents(self, sentences: List[str]) -> List[str]:
-        """贪心合并句子直到接近 parent_size。"""
+        """贪心合并句子直到接近 parent_size。单句超长则强制切分。"""
         parents = []
         buf = ""
         for s in sentences:
+            # 单句超过 parent_size：先 flush buf，再强制切分长句
+            if len(s) > self.parent_size:
+                if buf:
+                    parents.append(buf)
+                    buf = ""
+                # 按 parent_size 硬切长句
+                for start in range(0, len(s), self.parent_size):
+                    parents.append(s[start:start + self.parent_size])
+                continue
             if buf and len(buf) + len(s) > self.parent_size:
                 parents.append(buf)
                 buf = s

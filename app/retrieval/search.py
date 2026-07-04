@@ -3,37 +3,25 @@ from typing import List, Dict
 
 from app.retrieval.hybrid import HybridRetriever, ScoredHit
 from app.retrieval.reranker import Reranker, ScoredDoc
-from app.retrieval.intent import IntentClassifier
 
 
 class SearchOrchestrator:
-    def __init__(
-        self,
-        hybrid: HybridRetriever,
-        reranker: Reranker,
-        intent_classifier: IntentClassifier,
-    ):
+    def __init__(self, hybrid: HybridRetriever, reranker: Reranker):
         self.hybrid = hybrid
         self.reranker = reranker
-        self.intent = intent_classifier
 
     def search(self, question: str) -> List[ScoredDoc]:
-        """完整检索管线。"""
-        # 1. 意图分类 — general 直接跳过检索
-        intent = self.intent.predict(question)
-        if intent == "general":
-            return []
-
-        # 2. 双路检索
+        """完整检索管线（调用方已做意图分流，此处不再重复判断）。"""
+        # 1. 双路检索
         dense_hits, sparse_hits = self.hybrid.retrieve(question, top_k=30)
 
-        # 3. RRF 融合
+        # 2. RRF 融合
         fused = self._rrf_fusion(dense_hits, sparse_hits, k=60)
 
-        # 4. 父块去重（dense 有 parent_id，sparse 没有 → 用 text 作为 fallback key）
+        # 3. 父块去重
         unique_hits = self._deduplicate(fused)
 
-        # 5. CrossEncoder 精排
+        # 4. CrossEncoder 精排
         documents = [
             ScoredDoc(text=h.parent_text or h.text, source=h.source, score=h.score)
             for h in unique_hits

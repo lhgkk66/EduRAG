@@ -1,6 +1,10 @@
 """EduRAG FastAPI 入口。"""
 import logging
+import os
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +16,7 @@ from app.ingestion.embedder import BGEM3Embedder
 from app.ingestion.splitter import ChineseTextSplitter
 from app.ingestion.pipeline import IngestionPipeline
 from app.retrieval.bm25 import BM25Index
+from app.retrieval.fqa import FQARetriever
 from app.retrieval.intent import IntentClassifier
 from app.retrieval.reranker import Reranker
 from app.retrieval.hybrid import HybridRetriever
@@ -80,10 +85,21 @@ async def lifespan(app: FastAPI):
     # 检索
     app.state.reranker = Reranker()
     app.state.intent = IntentClassifier()
+
+    # FQA 快速路径（问候语 → FQA → RAG 的第一道拦截）
+    try:
+        app.state.fqa = FQARetriever(
+            redis_client=app.state.redis,
+            mysql_session_factory=app.state.mysql_session_factory,
+        )
+        logger.info("FQA 检索器就绪")
+    except Exception as e:
+        logger.warning("FQA 初始化失败，降级跳过: %s", e)
+        app.state.fqa = None
+
     app.state.orchestrator = SearchOrchestrator(
         hybrid=HybridRetriever(app.state.embedder, app.state.milvus_collection, app.state.bm25),
         reranker=app.state.reranker,
-        intent_classifier=app.state.intent,
     )
     logger.info("检索链路初始化完成")
 

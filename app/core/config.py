@@ -40,6 +40,10 @@ class Config:
         self.DASHSCOPE_BASE_URL = self.config.get('llm', 'dashscope_base_url',
                                                   fallback='https://dashscope.aliyuncs.com/compatible-mode/v1')
 
+        # FQA 参数
+        self.FQA_REL_THRESHOLD = self.config.getfloat('fqa', 'relative_threshold', fallback=0.85)
+        self.FQA_ABS_THRESHOLD = self.config.getfloat('fqa', 'absolute_threshold', fallback=10.0)
+
         # 检索参数
         self.PARENT_CHUNK_SIZE = self.config.getint('retrieval', 'parent_chunk_size', fallback=1200)
         self.CHILD_CHUNK_SIZE = self.config.getint('retrieval', 'child_chunk_size', fallback=300)

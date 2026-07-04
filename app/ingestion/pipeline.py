@@ -11,6 +11,14 @@ from app.ingestion.splitter import ChineseTextSplitter, SplitResult
 from app.ingestion.embedder import BGEM3Embedder
 
 
+def _truncate_bytes(s: str, max_bytes: int) -> str:
+    """按字节截断字符串，milvus 2.4 按 byte 校验 VARCHAR。"""
+    b = s.encode("utf-8")
+    if len(b) <= max_bytes:
+        return s
+    return b[:max_bytes].decode("utf-8", errors="ignore").rstrip("�")
+
+
 @dataclass
 class IngestStats:
     filename: str
@@ -58,10 +66,13 @@ class IngestionPipeline:
                 parent_idx = split_result.child_to_parent[child_idx]
                 parent_text = split_result.parent_chunks[parent_idx]
 
+                # 按字节截断：Milvus 2.4 以字节数校验 VARCHAR，中文每字 3 字节
+                t = _truncate_bytes(child_text, 2800)
+                pt = _truncate_bytes(parent_text, 5800)
                 rows.append({
-                    "text": child_text[:800],
+                    "text": t,
                     "parent_id": self._make_parent_id(source, parent_idx),
-                    "parent_text": parent_text[:2000],
+                    "parent_text": pt,
                     "source": source[:256],
                     "chunk_index": child_idx,
                 })

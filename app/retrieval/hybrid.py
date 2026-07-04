@@ -43,12 +43,13 @@ class HybridRetriever:
         )
         hits = []
         for hit in results[0]:
+            entity = hit.to_dict().get("entity", {})
             hits.append(ScoredHit(
                 chunk_id=hit.id,
-                text=hit.entity.get("text", ""),
-                parent_id=hit.entity.get("parent_id", ""),
-                parent_text=hit.entity.get("parent_text", ""),
-                source=hit.entity.get("source", ""),
+                text=entity.get("text", ""),
+                parent_id=entity.get("parent_id", ""),
+                parent_text=entity.get("parent_text", ""),
+                source=entity.get("source", ""),
                 score=hit.distance,
                 origin="dense",
             ))

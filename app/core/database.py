@@ -83,9 +83,9 @@ def get_milvus_collection() -> Collection:
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
             FieldSchema(name="dense_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
             FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
-            FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=800),
+            FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=3000),
             FieldSchema(name="parent_id", dtype=DataType.VARCHAR, max_length=64),
-            FieldSchema(name="parent_text", dtype=DataType.VARCHAR, max_length=2000),
+            FieldSchema(name="parent_text", dtype=DataType.VARCHAR, max_length=6000),
             FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=256),
             FieldSchema(name="chunk_index", dtype=DataType.INT32),
         ]
