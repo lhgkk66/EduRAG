@@ -407,3 +407,65 @@ python scripts/seed_data.py        # 一键注入 data/ 下全部
 8. **CORS 全开**：`allow_origins=["*"]`，生产环境应收敛白名单。
 9. **临时文件清理**：`/ingest` 用 `NamedTemporaryFile(delete=False)` + `finally unlink`，异常也不会残留。
 10. **测试缺口**：`tests/` 仅有 `__init__.py`，未编写单元测试；`splitter.py / bm25.py` 内置 `__main__` 自检作为最低保障。
+
+---
+
+## 十一、初始化状态总结（2026-07-04 核对）
+
+### 11.1 环境就绪情况
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| Python | ✓ 3.12.4 | 已通过清华镜像源安装 requirements.txt（torch 2.12.1 / transformers 5.13 / pymilvus 3.0 等已落盘） |
+| Node | ✓ v24.15.0 | npm 11.12.1 |
+| 前端依赖 | ✓ 已装 | `frontend/node_modules` 就绪（react 18.3 + vite 5.4） |
+| `.env` | ✓ 已配 | `DASHSCOPE_API_KEY` 已填入真实 key（注意：当前为明文，勿提交） |
+| `config.ini` | ✓ 默认 | MySQL 3307 / Redis 6379（密码 1234） / Milvus 19530 / collection=`edurag_v2` |
+
+### 11.2 本地模型文件核对（与 7.4 节修正）
+
+`models/` 目录**实际已存在**（`.gitignore` 忽略，但本地齐全），与文档原描述"需自行下载"不符，特此修正：
+
+| 代码引用路径 | 实际目录 | 用途 | 状态 |
+|---|---|---|---|
+| `models/bge-m3` | `models/bge-m3` | dense+sparse 嵌入 | ✓ 就绪（含 `pytorch_model.bin` / `sparse_linear.pt` / `colbert_linear.pt`） |
+| `models/bge-reranker-large` | `models/bge-reranker-large` | CrossEncoder 精排 | ✓ 就绪 |
+| `models/intent_bert`（代码默认） | **`models/bert_query_classifier`** | 意图分类 | ⚠ 名称不匹配 |
+
+> **⚠ Bug 提示**：`app/retrieval/intent.py` 中 `IntentClassifier.__init__` 默认 `model_path="models/intent_bert"`，但本地实际目录为 `models/bert_query_classifier`，且内含 `pytorch_model.bin` + `config.json` 等完整文件。当前因 `try/except` 兜底未报错，但意图分类模型实际未启用，所有问题走 `specialized` 分支。
+> **修复方案**（任选其一）：
+> 1. 将 `models/bert_query_classifier` 重命名为 `models/intent_bert`
+> 2. 修改 `intent.py` 默认路径为 `models/bert_query_classifier`
+> 3. 在 `config.ini` 增加 `intent_model_path` 配置项并由 `IntentClassifier` 读取
+
+额外发现：`models/` 还包含 `bert-base-chinese` 与 `nlp_bert_document-segmentation_chinese-base`，当前代码未引用，疑似预留扩展（文档分段 / 通用 BERT）。
+
+### 11.3 待启动前的外部服务检查
+
+| 服务 | 默认端口 | 必需性 | 启动前确认 |
+|---|---|---|---|
+| Milvus | 19530 | 硬依赖 | 需先启动，数据库 `itcast` 存在；首次运行会自动建 collection `edurag_v2` |
+| MySQL | 3307 | 软依赖 | 需存在库 `subjects_kg`；`chat_logs` 表由 `init_mysql()` 幂等创建 |
+| Redis | 6379 | 软依赖 | 密码 `1234`（来自 config.ini，与 .env.example 的空密码不一致，以 config.ini 为准） |
+| DashScope | 远程 | 运行时 | `.env` 已配 key |
+
+### 11.4 一键启动顺序
+
+```bash
+# 1. 启动 Milvus / MySQL / Redis（外部，按本地环境）
+# 2. 后端
+uvicorn app.main:app --reload
+# 3. 前端
+cd frontend && npm run dev
+# 4. 浏览器访问 http://localhost:5173
+# 5. （可选）注入文档
+python scripts/seed_data.py
+```
+
+### 11.5 待办与建议
+
+1. **修复意图模型路径不匹配**（见 11.2 Bug 提示）
+2. **CORS 收敛**：`allow_origins=["*"]` 改为 `["http://localhost:5173"]`
+3. **`.env` 安全**：当前 `DASHSCOPE_API_KEY` 为明文，确保 `.env` 已被 `.gitignore` 忽略（已确认）
+4. **补测试**：`tests/` 为空，建议补 ingestion / retrieval 关键链路单测
+5. **意图分类落地**：有 `bert_query_classifier` 模型后，需确认其标签 0/1 与 `general/specialized` 的映射方向
